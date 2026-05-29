@@ -395,9 +395,10 @@ function buildGroupFixture(){
   return matches.sort((a,b)=>a.kickoffUTC.localeCompare(b.kickoffUTC));
 }
 
+const DEFAULT_API_KEY = "1066e04223514d72b23785d07131f7a8";
 const state = {
   matches: buildGroupFixture(),
-  apiKey: localStorage.getItem("wc26_key") || "",
+  apiKey: localStorage.getItem("wc26_key") || DEFAULT_API_KEY,
   lastFetch: null,
 };
 
