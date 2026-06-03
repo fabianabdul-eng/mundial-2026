@@ -417,8 +417,11 @@ function statusPill(m){
   if(["FINISHED","FT"].includes(m.status)) return `<span class="pill ft">Final</span>`;
   return `<span class="pill up">${prettyTime(m.kickoffUTC)} hs</span>`;
 }
+function isMatchLiveOrFinished(m){
+  return ["LIVE","IN_PLAY","PAUSED","FINISHED","FT"].includes(m.status);
+}
 function scoreBlock(m){
-  const isLive = ["LIVE","IN_PLAY","PAUSED","FINISHED","FT"].includes(m.status);
+  const isLive = isMatchLiveOrFinished(m);
   if(isLive){
     return `<div class="scorebox">
       <span class="n">${m.homeScore ?? 0}</span>
@@ -466,7 +469,7 @@ function renderLive(){
   const el = document.getElementById("view-live");
   const now = Date.now();
   const live = state.matches.filter(m=> ["LIVE","IN_PLAY","PAUSED"].includes(m.status));
-  const upcoming = state.matches.filter(m=>m.status==="SCHEDULED" && new Date(m.kickoffUTC).getTime() > now - 30*60000).slice(0,9);
+  const upcoming = state.matches.filter(m=>["SCHEDULED","TIMED"].includes(m.status) && new Date(m.kickoffUTC).getTime() > now - 30*60000).slice(0,9);
   const finished = state.matches.filter(m=>["FINISHED","FT"].includes(m.status)).slice(-9).reverse();
 
   let html = heroCard();
