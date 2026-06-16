@@ -286,6 +286,9 @@
   .grid-matches,.grid-groups{justify-content:center}
   .grid-matches{grid-template-columns:repeat(auto-fit,minmax(320px,360px))}
   .grid-groups{grid-template-columns:repeat(auto-fit,minmax(360px,420px))}
+  .match-meta{flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:8px}
+  .match-meta .left{justify-content:center}
+  .venue{text-align:center;max-width:100%}
 </style>
 </head>
 <body>
@@ -442,7 +445,7 @@ function matchCard(m){
     </div>
     <div class="match-meta">
       <div class="left"><span class="pill">${groupLbl}</span>${statusPill(m)}</div>
-      <div class="venue">${m.venue||""}</div>
+      <div class="venue">${(m.venue||"").split(",").pop().trim()}</div>
     </div>
   </div>`;
 }
