@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 <meta name="theme-color" content="#0B3B2E" />
-<title>Mundial 2026 · En Vivo</title>
+<title>Mundial 2026</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='30' fill='%23ffffff' stroke='%230B1F44' stroke-width='2'/><polygon points='32,18 43,25.5 39,38.5 25,38.5 21,25.5' fill='%230B1F44'/><polygon points='32,6 43,9 43,16 39,18.5 25,18.5 21,16 21,9' fill='%23ffffff' stroke='%230B1F44' stroke-width='2'/><polygon points='10,22 21,16 21,25.5 14.5,33 7,29' fill='%23ffffff' stroke='%230B1F44' stroke-width='2'/><polygon points='54,22 43,16 43,25.5 49.5,33 57,29' fill='%23ffffff' stroke='%230B1F44' stroke-width='2'/><polygon points='17,49 14.5,38 25,38.5 28,49 24,55' fill='%23ffffff' stroke='%230B1F44' stroke-width='2'/><polygon points='47,49 49.5,38 39,38.5 36,49 40,55' fill='%23ffffff' stroke='%230B1F44' stroke-width='2'/></svg>" />
 <style>
   /* ============== Paleta oficial adidas Trionda (FIFA WC 26) ==============
@@ -272,6 +272,20 @@
     .flag-badge{width:54px;height:54px;font-size:30px}
     .tname{font-size:13px;max-width:110px}
   }
+
+  /* ============== Centrado general ============== */
+  .topbar-inner{flex-direction:column;justify-content:center;text-align:center;gap:14px}
+  .brand{justify-content:center}
+  nav.tabs{margin-left:0}
+  .status-pill{margin:0 auto}
+  .hero{justify-content:center;text-align:center}
+  .hero-text{flex:0 1 auto}
+  .hero .eyebrow,.hero .meta{justify-content:center}
+  .day-head{justify-content:center;gap:14px}
+  .legend{justify-content:center}
+  .grid-matches,.grid-groups{justify-content:center}
+  .grid-matches{grid-template-columns:repeat(auto-fit,minmax(320px,360px))}
+  .grid-groups{grid-template-columns:repeat(auto-fit,minmax(360px,420px))}
 </style>
 </head>
 <body>
@@ -286,34 +300,18 @@
       </div>
     </div>
     <nav class="tabs" id="tabs">
-      <button data-tab="live" class="active">En vivo</button>
-      <button data-tab="fixture">Calendario</button>
+      <button data-tab="fixture" class="active">Calendario</button>
       <button data-tab="groups">Grupos</button>
       <button data-tab="bracket">Llaves</button>
-      <button data-tab="settings">⚙</button>
     </nav>
     <span class="status-pill"><span class="dot off" id="statusDot"></span><span id="statusText">Modo demo</span></span>
   </div>
 </header>
 
 <main>
-  <section id="view-live"></section>
-  <section id="view-fixture" hidden></section>
+  <section id="view-fixture"></section>
   <section id="view-groups" hidden></section>
   <section id="view-bracket" hidden></section>
-  <section id="view-settings" hidden>
-    <div class="card">
-      <h3 style="margin:0 0 10px;color:var(--ink);font-size:15px;text-transform:uppercase;letter-spacing:.6px">Acerca de</h3>
-      <p class="muted" style="font-size:13.5px;margin:0 0 10px;max-width:640px">
-        Resultados en vivo del Mundial 2026 con hora local Colombia.
-        Fixture oficial del sorteo del 5-dic-2025. Tablas de posiciones y llaves se calculan automáticamente.
-      </p>
-      <p class="muted" style="font-size:12.5px;margin:0;max-width:640px">
-        Datos vía <a href="https://www.football-data.org/" target="_blank" rel="noopener">football-data.org</a> ·
-        Refresco cada 60 segundos · Cache CDN 30s para respetar rate limits.
-      </p>
-    </div>
-  </section>
 </main>
 
 <div class="toast" id="toast"></div>
@@ -823,7 +821,7 @@ seedDemoResults();
 // Refrescar cada 60s — el proxy cachea 30s asi que no quemamos rate limit.
 setInterval(fetchLive, 60000);
 
-showTab("live");
+showTab("fixture");
 fetchLive();
 document.getElementById("subtitle").textContent = "Hora local Colombia · resultados en vivo";
 </script>
