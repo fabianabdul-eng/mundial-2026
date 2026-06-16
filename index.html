@@ -496,11 +496,23 @@ function renderFixture(){
   const el = document.getElementById("view-fixture");
   const byDay = {};
   state.matches.forEach(m=>{ const k = dateKey(m.kickoffUTC); (byDay[k] ||= []).push(m); });
-  const keys = Object.keys(byDay).sort((a,b)=>{
-    const pa = a.split("/").reverse().join(""); const pb = b.split("/").reverse().join("");
-    return pa.localeCompare(pb);
-  });
+  // dd/mm/yyyy -> yyyymmdd para comparar fechas
+  const cmp = s => s.split("/").reverse().join("");
+  // "hoy" en hora local Colombia (se recalcula según la fecha real)
+  const todayCmp = cmp(fmtDay.format(new Date()));
+  // Dejar solo HOY (jugados o no) y los días futuros; quitar los días ya pasados.
+  // Orden ascendente = próximos primero.
+  const keys = Object.keys(byDay)
+    .filter(k => cmp(k) >= todayCmp)
+    .sort((a,b)=> cmp(a).localeCompare(cmp(b)));
   let html = "";
+  if(!keys.length){
+    html = `<div class="card" style="text-align:center;padding:30px">
+      <div style="font-size:36px;margin-bottom:6px">🏁</div>
+      <strong style="font-size:16px">No hay próximos partidos</strong>
+      <div class="muted" style="font-size:13px;margin-top:6px">El torneo ha concluido</div>
+    </div>`;
+  }
   keys.forEach(k=>{
     const first = byDay[k][0].kickoffUTC;
     html += `<div class="day-head"><h2>${prettyDate(first)}</h2><span>${byDay[k].length} partidos</span></div>`;
