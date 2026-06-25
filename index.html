@@ -229,7 +229,7 @@
   .bracket-title::before{left:-72px;background:linear-gradient(90deg,transparent,var(--power-red))}
   .bracket-title::after{right:-72px;background:linear-gradient(90deg,var(--royal-blue),transparent)}
   .bracket-svg-wrap{width:100%;display:flex;justify-content:center;overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .bracket-svg{display:block;margin:0 auto;width:100%;height:auto;max-width:1400px;min-width:780px}
+  .bracket-svg{display:block;margin:0 auto;width:100%;height:auto;max-width:1560px;min-width:1120px}
   .hex-team text{font-size:14px;font-weight:800;fill:#fff;letter-spacing:.4px}
   .hex-q text{font-size:24px;font-weight:900;fill:var(--ink)}
   .round-label{font-size:14px;font-weight:800;fill:var(--ink-2);letter-spacing:3px;text-transform:uppercase}
@@ -587,44 +587,46 @@ function renderBracket(){
   const winners = {}, runners = {};
   Object.keys(tables).forEach(g=>{ winners[g] = tables[g][0]; runners[g] = tables[g][1]; });
 
-  // 16 equipos para los octavos (8 izquierda, 8 derecha)
-  const left  = [["1A","1B"], ["1C","1D"], ["1E","1F"], ["1G","1H"]];
-  const right = [["1I","1J"], ["1K","1L"], ["2A","2B"], ["2C","2D"]];
+  // Ronda de 32 oficial FIFA 2026 — 16 por lado (cada par = un cruce)
+  // 1X = ganador grupo X · 2X = segundo grupo X · 3:XYZ = mejor 3º de esos grupos
+  const left = [
+    ["1E","3:ABCDF"], ["1I","3:CDFGH"],
+    ["2A","2B"],      ["1F","2C"],
+    ["2K","2L"],      ["1H","2J"],
+    ["1D","3:BEFIJ"], ["1G","3:AEHIJ"],
+  ];
+  const right = [
+    ["1C","2F"],      ["2E","2I"],
+    ["1A","3:CEFHI"], ["1L","3:EHIJK"],
+    ["1J","2H"],      ["2D","2G"],
+    ["1B","3:EFGIJ"], ["1K","3:DEIJL"],
+  ];
   const teamFromCode = (code) => {
     const m = code.match(/^([12])([A-L])$/);
     if(!m) return null;
     return m[1]==="1" ? winners[m[2]] : runners[m[2]];
   };
 
-  // ====== Geometría ======
-  const W = 1400, H = 820;
+  // ====== Geometría (32 equipos: 16 por lado, 5 rondas) ======
+  const W = 1740, H = 1200;
   const CX = W/2;
-  const TEAM_W = 170, TEAM_H = 46;
-  const Q_W = 100, Q_H = 44;
-  const Q2_W = 90, Q2_H = 42;
-  const padTop = 80, padBot = 50;
+  const TEAM_W = 150, TEAM_H = 40;
+  const Q_W = 78, Q_H = 40;
+  const padTop = 92, padBot = 46;
 
-  // 7 columnas explícitas
-  const colX = {
-    teamL: 110,
-    r16L:  300,
-    qfL:   470,
-    sfL:   620,
-    final: CX,
-    sfR:   W - 620,
-    qfR:   W - 470,
-    r16R:  W - 300,
-    teamR: W - 110,
-  };
+  // Columnas: 16avos -> octavos -> cuartos -> semis -> final (espejo a la derecha)
+  const L = { team:120, o:300, c:460, s:600 };
+  const R = { team:W-120, o:W-300, c:W-460, s:W-600 };
 
   const ys = (n, top=padTop) => {
     const gap = (H - top - padBot) / (n-1 || 1);
     return Array.from({length:n}, (_,i)=> top + i*gap);
   };
-  const yL1 = ys(8);
-  const yL2 = [ (yL1[0]+yL1[1])/2, (yL1[2]+yL1[3])/2, (yL1[4]+yL1[5])/2, (yL1[6]+yL1[7])/2 ];
-  const yL3 = [ (yL2[0]+yL2[1])/2, (yL2[2]+yL2[3])/2 ];
-  const yR1 = yL1, yR2 = yL2, yR3 = yL3;
+  const mid = (arr) => { const r=[]; for(let i=0;i<arr.length;i+=2) r.push((arr[i]+arr[i+1])/2); return r; };
+  const yT = ys(16);   // 16 equipos
+  const yO = mid(yT);  // 8 octavos
+  const yC = mid(yO);  // 4 cuartos
+  const yS = mid(yC);  // 2 semis
   const yFinal = H/2;
 
   const hex = (cx,cy,w,h,fill,text,flag) => {
@@ -649,18 +651,25 @@ function renderBracket(){
   const line = (x1,y1,x2,y2) =>
     `<path class="bracket-line" d="M${x1} ${y1} H${(x1+x2)/2} V${y2} H${x2}"/>`;
 
+  const placeholder = (cx,cy,a,b) => {
+    const x = cx - TEAM_W/2, y = cy - TEAM_H/2;
+    return `<g>
+      <rect x="${x}" y="${y}" width="${TEAM_W}" height="${TEAM_H}" rx="9"
+        fill="#fff" stroke="#CBD5E1" stroke-dasharray="5 4"/>
+      <text x="${x+14}" y="${cy+5}" class="team-label">${a}</text>
+      <text x="${x+TEAM_W-12}" y="${cy+5}" text-anchor="end" class="team-label" opacity=".7">${b}</text>
+    </g>`;
+  };
   const teamHex = (code, cx, cy) => {
+    if(code[0]==="3"){
+      const cl = code.split(":")[1].split("").join("/");
+      return placeholder(cx, cy, "3º", cl);
+    }
     const t = teamFromCode(code);
     if(t && t.pj>0){
       return hex(cx, cy, TEAM_W, TEAM_H, "url(#hexGrad)", t.short, t.flag);
     }
-    const x = cx - TEAM_W/2, y = cy - TEAM_H/2;
-    return `<g>
-      <rect x="${x}" y="${y}" width="${TEAM_W}" height="${TEAM_H}" rx="10"
-        fill="#fff" stroke="#CBD5E1" stroke-dasharray="5 4"/>
-      <text x="${x+18}" y="${cy+6}" class="team-label">${code.slice(1)}°${code.slice(0,1)}</text>
-      <text x="${x+TEAM_W-16}" y="${cy+6}" text-anchor="end" class="team-label" opacity=".7">por def.</text>
-    </g>`;
+    return placeholder(cx, cy, code[0]+"º "+code[1], "por def.");
   };
 
   let svg = `<svg class="bracket-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
@@ -680,58 +689,54 @@ function renderBracket(){
       </radialGradient>
     </defs>
 
-    <text x="${colX.teamL}" y="40" text-anchor="middle" class="round-label">Octavos</text>
-    <text x="${colX.r16L}"  y="40" text-anchor="middle" class="round-label">Cuartos</text>
-    <text x="${colX.qfL}"   y="40" text-anchor="middle" class="round-label">Semis</text>
-    <text x="${CX}"         y="40" text-anchor="middle" class="round-label" style="font-size:16px;fill:#003DA5">Final</text>
-    <text x="${colX.qfR}"   y="40" text-anchor="middle" class="round-label">Semis</text>
-    <text x="${colX.r16R}"  y="40" text-anchor="middle" class="round-label">Cuartos</text>
-    <text x="${colX.teamR}" y="40" text-anchor="middle" class="round-label">Octavos</text>
+    <text x="${L.team}" y="42" text-anchor="middle" class="round-label" style="font-size:11px">Dieciseisavos</text>
+    <text x="${L.o}"    y="42" text-anchor="middle" class="round-label">Octavos</text>
+    <text x="${L.c}"    y="42" text-anchor="middle" class="round-label">Cuartos</text>
+    <text x="${L.s}"    y="42" text-anchor="middle" class="round-label">Semis</text>
+    <text x="${CX}"     y="42" text-anchor="middle" class="round-label" style="font-size:16px;fill:#003DA5">Final</text>
+    <text x="${R.s}"    y="42" text-anchor="middle" class="round-label">Semis</text>
+    <text x="${R.c}"    y="42" text-anchor="middle" class="round-label">Cuartos</text>
+    <text x="${R.o}"    y="42" text-anchor="middle" class="round-label">Octavos</text>
+    <text x="${R.team}" y="42" text-anchor="middle" class="round-label" style="font-size:11px">Dieciseisavos</text>
   `;
 
-  // LADO IZQUIERDO
-  left.forEach((pair,i)=>{
-    const yA = yL1[i*2], yB = yL1[i*2+1];
-    svg += teamHex(pair[0], colX.teamL, yA);
-    svg += teamHex(pair[1], colX.teamL, yB);
-    const yMid = (yA+yB)/2;
-    svg += line(colX.teamL+TEAM_W/2, yA, colX.r16L-Q_W/2, yMid);
-    svg += line(colX.teamL+TEAM_W/2, yB, colX.r16L-Q_W/2, yMid);
-    svg += qmark(colX.r16L, yMid, Q_W, Q_H);
-  });
-  for(let i=0;i<2;i++){
-    const yA = yL2[i*2], yB = yL2[i*2+1];
-    const yMid = (yA+yB)/2;
-    svg += line(colX.r16L+Q_W/2, yA, colX.qfL-Q2_W/2, yMid);
-    svg += line(colX.r16L+Q_W/2, yB, colX.qfL-Q2_W/2, yMid);
-    svg += qmark(colX.qfL, yMid, Q2_W, Q2_H);
-  }
-  svg += line(colX.qfL+Q2_W/2, yL3[0], colX.sfL, yFinal);
-  svg += line(colX.qfL+Q2_W/2, yL3[1], colX.sfL, yFinal);
+  const codesL = left.flat(), codesR = right.flat();
 
-  // LADO DERECHO
-  right.forEach((pair,i)=>{
-    const yA = yR1[i*2], yB = yR1[i*2+1];
-    svg += teamHex(pair[0], colX.teamR, yA);
-    svg += teamHex(pair[1], colX.teamR, yB);
-    const yMid = (yA+yB)/2;
-    svg += line(colX.teamR-TEAM_W/2, yA, colX.r16R+Q_W/2, yMid);
-    svg += line(colX.teamR-TEAM_W/2, yB, colX.r16R+Q_W/2, yMid);
-    svg += qmark(colX.r16R, yMid, Q_W, Q_H);
-  });
-  for(let i=0;i<2;i++){
-    const yA = yR2[i*2], yB = yR2[i*2+1];
-    const yMid = (yA+yB)/2;
-    svg += line(colX.r16R-Q_W/2, yA, colX.qfR+Q2_W/2, yMid);
-    svg += line(colX.r16R-Q_W/2, yB, colX.qfR+Q2_W/2, yMid);
-    svg += qmark(colX.qfR, yMid, Q2_W, Q2_H);
-  }
-  svg += line(colX.qfR-Q2_W/2, yR3[0], colX.sfR, yFinal);
-  svg += line(colX.qfR-Q2_W/2, yR3[1], colX.sfR, yFinal);
+  // ---- LADO IZQUIERDO ----
+  codesL.forEach((c,i)=> svg += teamHex(c, L.team, yT[i]));
+  for(let i=0;i<8;i++){ const a=yT[2*i], b=yT[2*i+1], m=yO[i];
+    svg += line(L.team+TEAM_W/2, a, L.o-Q_W/2, m);
+    svg += line(L.team+TEAM_W/2, b, L.o-Q_W/2, m);
+    svg += qmark(L.o, m, Q_W, Q_H); }
+  for(let i=0;i<4;i++){ const a=yO[2*i], b=yO[2*i+1], m=yC[i];
+    svg += line(L.o+Q_W/2, a, L.c-Q_W/2, m);
+    svg += line(L.o+Q_W/2, b, L.c-Q_W/2, m);
+    svg += qmark(L.c, m, Q_W, Q_H); }
+  for(let i=0;i<2;i++){ const a=yC[2*i], b=yC[2*i+1], m=yS[i];
+    svg += line(L.c+Q_W/2, a, L.s-Q_W/2, m);
+    svg += line(L.c+Q_W/2, b, L.s-Q_W/2, m);
+    svg += qmark(L.s, m, Q_W, Q_H); }
+  svg += line(L.s+Q_W/2, yS[0], CX-58, yFinal);
+  svg += line(L.s+Q_W/2, yS[1], CX-58, yFinal);
+
+  // ---- LADO DERECHO ----
+  codesR.forEach((c,i)=> svg += teamHex(c, R.team, yT[i]));
+  for(let i=0;i<8;i++){ const a=yT[2*i], b=yT[2*i+1], m=yO[i];
+    svg += line(R.team-TEAM_W/2, a, R.o+Q_W/2, m);
+    svg += line(R.team-TEAM_W/2, b, R.o+Q_W/2, m);
+    svg += qmark(R.o, m, Q_W, Q_H); }
+  for(let i=0;i<4;i++){ const a=yO[2*i], b=yO[2*i+1], m=yC[i];
+    svg += line(R.o-Q_W/2, a, R.c+Q_W/2, m);
+    svg += line(R.o-Q_W/2, b, R.c+Q_W/2, m);
+    svg += qmark(R.c, m, Q_W, Q_H); }
+  for(let i=0;i<2;i++){ const a=yC[2*i], b=yC[2*i+1], m=yS[i];
+    svg += line(R.c-Q_W/2, a, R.s+Q_W/2, m);
+    svg += line(R.c-Q_W/2, b, R.s+Q_W/2, m);
+    svg += qmark(R.s, m, Q_W, Q_H); }
+  svg += line(R.s-Q_W/2, yS[0], CX+58, yFinal);
+  svg += line(R.s-Q_W/2, yS[1], CX+58, yFinal);
 
   // FINAL — trofeo
-  svg += line(colX.sfL, yFinal, CX-48, yFinal);
-  svg += line(colX.sfR, yFinal, CX+48, yFinal);
   const trophyR = 50;
   svg += `<g transform="translate(${CX},${yFinal})">
     <circle r="${trophyR+10}" fill="rgba(212,160,23,.10)"/>
