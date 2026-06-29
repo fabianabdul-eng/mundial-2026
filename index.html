@@ -304,7 +304,6 @@
     </div>
     <nav class="tabs" id="tabs">
       <button data-tab="fixture" class="active">Calendario</button>
-      <button data-tab="groups">Grupos</button>
       <button data-tab="bracket">Llaves</button>
     </nav>
     <span class="status-pill"><span class="dot off" id="statusDot"></span><span id="statusText">Modo demo</span></span>
@@ -313,7 +312,6 @@
 
 <main>
   <section id="view-fixture"></section>
-  <section id="view-groups" hidden></section>
   <section id="view-bracket" hidden></section>
 </main>
 
@@ -601,11 +599,41 @@ function renderBracket(){
     ["1J","2H"],      ["2D","2G"],
     ["1B","3:EFGIJ"], ["1K","3:DEIJL"],
   ];
-  const teamFromCode = (code) => {
-    const m = code.match(/^([12])([A-L])$/);
+  const codeFrom = (c) => {
+    const m = c.match(/^([12])([A-L])$/);
     if(!m) return null;
-    return m[1]==="1" ? winners[m[2]] : runners[m[2]];
+    const t = m[1]==="1" ? winners[m[2]] : runners[m[2]];
+    return t ? t.code : null;
   };
+  // Árbol de eliminatorias a partir de los resultados reales del API (state.ko)
+  const KO = state.ko || [];
+  const inStage = (s) => KO.filter(m=>m.stage===s);
+  const byTeam = (s,tc) => tc ? inStage(s).find(m=> m.h===tc || m.a===tc) : null;
+  const byBoth = (s,c1,c2) => (c1&&c2) ? inStage(s).find(m=> (m.h===c1&&m.a===c2)||(m.h===c2&&m.a===c1)) : null;
+  const r32node = (pair) => {
+    const aT = pair[0][0]==="3" ? null : codeFrom(pair[0]);
+    const bT = pair[1][0]==="3" ? null : codeFrom(pair[1]);
+    const m = byTeam("LAST_32", aT||bT);
+    let top, bot, win=null;
+    if(m){
+      if(aT){ top=aT; bot=(m.h===aT?m.a:m.h); }
+      else { bot=bT; top=(m.h===bT?m.a:m.h); }
+      win = m.win;
+    } else { top=aT; bot=bT; }
+    return {top, bot, win};
+  };
+  const sideTree = (slots) => {
+    const r32 = slots.map(r32node);
+    const oct = r32.map(n=>n.win);
+    const cua = [0,1,2,3].map(j=>{ const m=byBoth("LAST_16",oct[2*j],oct[2*j+1]); return m?m.win:null; });
+    const sem = [0,1].map(k=>{ const m=byBoth("QUARTER_FINALS",cua[2*k],cua[2*k+1]); return m?m.win:null; });
+    const mf = byBoth("SEMI_FINALS",sem[0],sem[1]);
+    const t16 = []; r32.forEach(n=>{ t16.push(n.top); t16.push(n.bot); });
+    return {t16, oct, cua, sem, fin: mf?mf.win:null};
+  };
+  const TL = sideTree(left), TR = sideTree(right);
+  const mFinal = byBoth("FINAL", TL.fin, TR.fin);
+  const champion = mFinal ? mFinal.win : null;
 
   // ====== Geometría (32 equipos: 16 por lado, 5 rondas) ======
   const W = 1740, H = 1200;
@@ -651,25 +679,10 @@ function renderBracket(){
   const line = (x1,y1,x2,y2) =>
     `<path class="bracket-line" d="M${x1} ${y1} H${(x1+x2)/2} V${y2} H${x2}"/>`;
 
-  const placeholder = (cx,cy,a,b) => {
-    const x = cx - TEAM_W/2, y = cy - TEAM_H/2;
-    return `<g>
-      <rect x="${x}" y="${y}" width="${TEAM_W}" height="${TEAM_H}" rx="9"
-        fill="#fff" stroke="#CBD5E1" stroke-dasharray="5 4"/>
-      <text x="${x+14}" y="${cy+5}" class="team-label">${a}</text>
-      <text x="${x+TEAM_W-12}" y="${cy+5}" text-anchor="end" class="team-label" opacity=".7">${b}</text>
-    </g>`;
-  };
-  const teamHex = (code, cx, cy) => {
-    if(code[0]==="3"){
-      const cl = code.split(":")[1].split("").join("/");
-      return placeholder(cx, cy, "3º", cl);
-    }
-    const t = teamFromCode(code);
-    if(t && t.pj>0){
-      return hex(cx, cy, TEAM_W, TEAM_H, "url(#hexGrad)", t.short, t.flag);
-    }
-    return placeholder(cx, cy, code[0]+"º "+code[1], "por def.");
+  const IN_H = 36;   // alto de cajas internas (rondas siguientes)
+  const box = (code, cx, cy, w, h) => {
+    if(code && TEAMS[code]) return hex(cx, cy, w, h, "url(#hexGrad)", TEAMS[code].short || code, TEAMS[code].flag);
+    return qmark(cx, cy, w, h);
   };
 
   let svg = `<svg class="bracket-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
@@ -700,41 +713,47 @@ function renderBracket(){
     <text x="${R.team}" y="42" text-anchor="middle" class="round-label" style="font-size:11px">Dieciseisavos</text>
   `;
 
-  const codesL = left.flat(), codesR = right.flat();
+  const IW = 96;   // ancho cajas internas
 
   // ---- LADO IZQUIERDO ----
-  codesL.forEach((c,i)=> svg += teamHex(c, L.team, yT[i]));
+  TL.t16.forEach((c,i)=> svg += box(c, L.team, yT[i], TEAM_W, TEAM_H));
   for(let i=0;i<8;i++){ const a=yT[2*i], b=yT[2*i+1], m=yO[i];
-    svg += line(L.team+TEAM_W/2, a, L.o-Q_W/2, m);
-    svg += line(L.team+TEAM_W/2, b, L.o-Q_W/2, m);
-    svg += qmark(L.o, m, Q_W, Q_H); }
+    svg += line(L.team+TEAM_W/2, a, L.o-IW/2, m);
+    svg += line(L.team+TEAM_W/2, b, L.o-IW/2, m);
+    svg += box(TL.oct[i], L.o, m, IW, IN_H); }
   for(let i=0;i<4;i++){ const a=yO[2*i], b=yO[2*i+1], m=yC[i];
-    svg += line(L.o+Q_W/2, a, L.c-Q_W/2, m);
-    svg += line(L.o+Q_W/2, b, L.c-Q_W/2, m);
-    svg += qmark(L.c, m, Q_W, Q_H); }
+    svg += line(L.o+IW/2, a, L.c-IW/2, m);
+    svg += line(L.o+IW/2, b, L.c-IW/2, m);
+    svg += box(TL.cua[i], L.c, m, IW, IN_H); }
   for(let i=0;i<2;i++){ const a=yC[2*i], b=yC[2*i+1], m=yS[i];
-    svg += line(L.c+Q_W/2, a, L.s-Q_W/2, m);
-    svg += line(L.c+Q_W/2, b, L.s-Q_W/2, m);
-    svg += qmark(L.s, m, Q_W, Q_H); }
-  svg += line(L.s+Q_W/2, yS[0], CX-58, yFinal);
-  svg += line(L.s+Q_W/2, yS[1], CX-58, yFinal);
+    svg += line(L.c+IW/2, a, L.s-IW/2, m);
+    svg += line(L.c+IW/2, b, L.s-IW/2, m);
+    svg += box(TL.sem[i], L.s, m, IW, IN_H); }
+  const fxL = CX-150;
+  svg += line(L.s+IW/2, yS[0], fxL-IW/2, yFinal);
+  svg += line(L.s+IW/2, yS[1], fxL-IW/2, yFinal);
+  svg += box(TL.fin, fxL, yFinal, IW, IN_H);
+  svg += line(fxL+IW/2, yFinal, CX-56, yFinal);
 
   // ---- LADO DERECHO ----
-  codesR.forEach((c,i)=> svg += teamHex(c, R.team, yT[i]));
+  TR.t16.forEach((c,i)=> svg += box(c, R.team, yT[i], TEAM_W, TEAM_H));
   for(let i=0;i<8;i++){ const a=yT[2*i], b=yT[2*i+1], m=yO[i];
-    svg += line(R.team-TEAM_W/2, a, R.o+Q_W/2, m);
-    svg += line(R.team-TEAM_W/2, b, R.o+Q_W/2, m);
-    svg += qmark(R.o, m, Q_W, Q_H); }
+    svg += line(R.team-TEAM_W/2, a, R.o+IW/2, m);
+    svg += line(R.team-TEAM_W/2, b, R.o+IW/2, m);
+    svg += box(TR.oct[i], R.o, m, IW, IN_H); }
   for(let i=0;i<4;i++){ const a=yO[2*i], b=yO[2*i+1], m=yC[i];
-    svg += line(R.o-Q_W/2, a, R.c+Q_W/2, m);
-    svg += line(R.o-Q_W/2, b, R.c+Q_W/2, m);
-    svg += qmark(R.c, m, Q_W, Q_H); }
+    svg += line(R.o-IW/2, a, R.c+IW/2, m);
+    svg += line(R.o-IW/2, b, R.c+IW/2, m);
+    svg += box(TR.cua[i], R.c, m, IW, IN_H); }
   for(let i=0;i<2;i++){ const a=yC[2*i], b=yC[2*i+1], m=yS[i];
-    svg += line(R.c-Q_W/2, a, R.s+Q_W/2, m);
-    svg += line(R.c-Q_W/2, b, R.s+Q_W/2, m);
-    svg += qmark(R.s, m, Q_W, Q_H); }
-  svg += line(R.s-Q_W/2, yS[0], CX+58, yFinal);
-  svg += line(R.s-Q_W/2, yS[1], CX+58, yFinal);
+    svg += line(R.c-IW/2, a, R.s+IW/2, m);
+    svg += line(R.c-IW/2, b, R.s+IW/2, m);
+    svg += box(TR.sem[i], R.s, m, IW, IN_H); }
+  const fxR = CX+150;
+  svg += line(R.s-IW/2, yS[0], fxR+IW/2, yFinal);
+  svg += line(R.s-IW/2, yS[1], fxR+IW/2, yFinal);
+  svg += box(TR.fin, fxR, yFinal, IW, IN_H);
+  svg += line(fxR-IW/2, yFinal, CX+56, yFinal);
 
   // FINAL — trofeo
   const trophyR = 50;
@@ -746,6 +765,10 @@ function renderBracket(){
   </g>`;
   svg += `<text x="${CX}" y="${yFinal+trophyR+38}" text-anchor="middle" class="round-label" style="fill:var(--ink);font-size:15px;letter-spacing:2px">19 jul · MetLife Stadium</text>`;
   svg += `<text x="${CX}" y="${yFinal+trophyR+58}" text-anchor="middle" class="round-label" style="fill:var(--muted);font-size:11px;letter-spacing:2px">East Rutherford · NJ</text>`;
+  if(champion && TEAMS[champion]){
+    svg += `<text x="${CX}" y="${yFinal-trophyR-66}" text-anchor="middle" class="round-label" style="fill:var(--gold);font-size:13px;letter-spacing:2px">CAMPEÓN</text>`;
+    svg += box(champion, CX, yFinal-trophyR-44, 124, 38);
+  }
 
   svg += `</svg>`;
 
@@ -753,8 +776,8 @@ function renderBracket(){
     <div class="bracket-title">Camino a la Copa</div>
     <div class="bracket-svg-wrap">${svg}</div>
     <p class="muted" style="font-size:12.5px;text-align:center;margin:18px auto 0;max-width:760px">
-      Los cuadros se completan automáticamente cuando los grupos terminen.
-      Cada equipo se posiciona según su clasificación final en fase de grupos (1° y 2° de cada grupo + 8 mejores terceros).
+      Se actualiza en vivo con los resultados oficiales: cada equipo avanza según el ganador real de su llave.
+      Los cuadros sin definir muestran «?» hasta que se juegue el partido.
     </p>
   </div>`;
 }
@@ -790,18 +813,38 @@ async function fetchLive(){
     if(Array.isArray(data.matches)){
       const norm = (s)=> (s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
       const codeOf = name => Object.keys(TEAMS).find(c=> norm(TEAMS[c].name)===norm(name) || c.toLowerCase()===norm(name));
+      const STAGE_ES = {LAST_32:"Dieciseisavos",ROUND_OF_32:"Dieciseisavos",LAST_16:"Octavos",ROUND_OF_16:"Octavos",QUARTER_FINALS:"Cuartos",SEMI_FINALS:"Semifinal",THIRD_PLACE:"3er puesto",FINAL:"Final"};
+      const ko = [];
       data.matches.forEach(rm=>{
-        const h = codeOf(rm.homeTeam?.name) || codeOf(rm.homeTeam?.tla);
-        const a = codeOf(rm.awayTeam?.name) || codeOf(rm.awayTeam?.tla);
+        const h = codeOf(rm.homeTeam?.tla) || codeOf(rm.homeTeam?.name);
+        const a = codeOf(rm.awayTeam?.tla) || codeOf(rm.awayTeam?.name);
+        const stage = rm.stage || "";
+        const st = rm.status==="IN_PLAY"||rm.status==="PAUSED" ? "LIVE" : (rm.status||"SCHEDULED");
+        const hs = rm.score?.fullTime?.home ?? rm.score?.halfTime?.home ?? null;
+        const as = rm.score?.fullTime?.away ?? rm.score?.halfTime?.away ?? null;
+        if(/GROUP|LEAGUE/.test(stage)){
+          if(!h || !a) return;
+          const local = state.matches.find(m=>m.group && m.home===h && m.away===a);
+          if(!local) return;
+          local.kickoffUTC = rm.utcDate || local.kickoffUTC;
+          local.status = st; local.minute = rm.minute || null;
+          local.homeScore = hs; local.awayScore = as;
+          return;
+        }
+        // Eliminatorias (dieciseisavos en adelante)
         if(!h || !a) return;
-        const local = state.matches.find(m=>m.home===h && m.away===a);
-        if(!local) return;
-        local.kickoffUTC = rm.utcDate || local.kickoffUTC;
-        local.status = rm.status==="IN_PLAY"||rm.status==="PAUSED" ? "LIVE" : (rm.status||local.status);
-        local.minute = rm.minute || null;
-        local.homeScore = rm.score?.fullTime?.home ?? rm.score?.halfTime?.home ?? null;
-        local.awayScore = rm.score?.fullTime?.away ?? rm.score?.halfTime?.away ?? null;
+        const win = rm.score?.winner==="HOME_TEAM" ? h : rm.score?.winner==="AWAY_TEAM" ? a : null;
+        ko.push({stage, stageEs:STAGE_ES[stage]||stage, h, a, hs, as, win, status:st});
+        const id = "KO-"+(rm.id || stage+"-"+rm.utcDate);
+        let cm = state.matches.find(m=>m.id===id);
+        if(!cm){ cm={id, group:null, matchday:null}; state.matches.push(cm); }
+        cm.stage = STAGE_ES[stage]||stage; cm.home = h; cm.away = a;
+        cm.kickoffUTC = rm.utcDate || cm.kickoffUTC;
+        cm.status = st; cm.minute = rm.minute || null;
+        cm.homeScore = hs; cm.awayScore = as;
+        cm.venue = rm.venue || cm.venue || "";
       });
+      state.ko = ko;
       state.lastFetch = new Date();
       setStatus(true,"En vivo · "+fmtTime.format(state.lastFetch));
       const active = document.querySelector("#tabs button.active").dataset.tab;
