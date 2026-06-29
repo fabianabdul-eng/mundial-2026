@@ -636,11 +636,11 @@ function renderBracket(){
   const champion = mFinal ? mFinal.win : null;
 
   // ====== Geometría (32 equipos: 16 por lado, 5 rondas) ======
-  const W = 1740, H = 1200;
+  const W = 1740, H = 1340;
   const CX = W/2;
   const TEAM_W = 150, TEAM_H = 40;
   const Q_W = 78, Q_H = 40;
-  const padTop = 92, padBot = 46;
+  const padTop = 96, padBot = 64;
 
   // Columnas: 16avos -> octavos -> cuartos -> semis -> final (espejo a la derecha)
   const L = { team:120, o:300, c:460, s:600 };
@@ -679,10 +679,20 @@ function renderBracket(){
   const line = (x1,y1,x2,y2) =>
     `<path class="bracket-line" d="M${x1} ${y1} H${(x1+x2)/2} V${y2} H${x2}"/>`;
 
-  const IN_H = 36;   // alto de cajas internas (rondas siguientes)
-  const box = (code, cx, cy, w, h) => {
-    if(code && TEAMS[code]) return hex(cx, cy, w, h, "url(#hexGrad)", TEAMS[code].short || code, TEAMS[code].flag);
-    return qmark(cx, cy, w, h);
+  const R_OUT = 22, R_IN = 18;   // radios de los círculos (16avos / rondas internas)
+  // Nodo circular: bandera dentro, nombre del país debajo
+  const node = (code, cx, cy, r) => {
+    if(code && TEAMS[code]){
+      return `<g>
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="#EAEFF7" stroke="#CBD5E1" stroke-width="1.5"/>
+        <text x="${cx}" y="${cy + r*0.45}" text-anchor="middle" style="font-size:${Math.round(r*1.25)}px">${TEAMS[code].flag}</text>
+        <text x="${cx}" y="${cy + r + 14}" text-anchor="middle" style="font-size:11px;font-weight:800;fill:var(--ink)">${TEAMS[code].name}</text>
+      </g>`;
+    }
+    return `<g>
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="#F4F6FB" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <text x="${cx}" y="${cy + 5}" text-anchor="middle" style="font-size:16px;font-weight:800;fill:#94A3B8">?</text>
+    </g>`;
   };
 
   let svg = `<svg class="bracket-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
@@ -713,47 +723,45 @@ function renderBracket(){
     <text x="${R.team}" y="42" text-anchor="middle" class="round-label" style="font-size:11px">Dieciseisavos</text>
   `;
 
-  const IW = 96;   // ancho cajas internas
-
   // ---- LADO IZQUIERDO ----
-  TL.t16.forEach((c,i)=> svg += box(c, L.team, yT[i], TEAM_W, TEAM_H));
+  TL.t16.forEach((c,i)=> svg += node(c, L.team, yT[i], R_OUT));
   for(let i=0;i<8;i++){ const a=yT[2*i], b=yT[2*i+1], m=yO[i];
-    svg += line(L.team+TEAM_W/2, a, L.o-IW/2, m);
-    svg += line(L.team+TEAM_W/2, b, L.o-IW/2, m);
-    svg += box(TL.oct[i], L.o, m, IW, IN_H); }
+    svg += line(L.team+R_OUT, a, L.o-R_IN, m);
+    svg += line(L.team+R_OUT, b, L.o-R_IN, m);
+    svg += node(TL.oct[i], L.o, m, R_IN); }
   for(let i=0;i<4;i++){ const a=yO[2*i], b=yO[2*i+1], m=yC[i];
-    svg += line(L.o+IW/2, a, L.c-IW/2, m);
-    svg += line(L.o+IW/2, b, L.c-IW/2, m);
-    svg += box(TL.cua[i], L.c, m, IW, IN_H); }
+    svg += line(L.o+R_IN, a, L.c-R_IN, m);
+    svg += line(L.o+R_IN, b, L.c-R_IN, m);
+    svg += node(TL.cua[i], L.c, m, R_IN); }
   for(let i=0;i<2;i++){ const a=yC[2*i], b=yC[2*i+1], m=yS[i];
-    svg += line(L.c+IW/2, a, L.s-IW/2, m);
-    svg += line(L.c+IW/2, b, L.s-IW/2, m);
-    svg += box(TL.sem[i], L.s, m, IW, IN_H); }
+    svg += line(L.c+R_IN, a, L.s-R_IN, m);
+    svg += line(L.c+R_IN, b, L.s-R_IN, m);
+    svg += node(TL.sem[i], L.s, m, R_IN); }
   const fxL = CX-150;
-  svg += line(L.s+IW/2, yS[0], fxL-IW/2, yFinal);
-  svg += line(L.s+IW/2, yS[1], fxL-IW/2, yFinal);
-  svg += box(TL.fin, fxL, yFinal, IW, IN_H);
-  svg += line(fxL+IW/2, yFinal, CX-56, yFinal);
+  svg += line(L.s+R_IN, yS[0], fxL-R_IN, yFinal);
+  svg += line(L.s+R_IN, yS[1], fxL-R_IN, yFinal);
+  svg += node(TL.fin, fxL, yFinal, R_IN);
+  svg += line(fxL+R_IN, yFinal, CX-56, yFinal);
 
   // ---- LADO DERECHO ----
-  TR.t16.forEach((c,i)=> svg += box(c, R.team, yT[i], TEAM_W, TEAM_H));
+  TR.t16.forEach((c,i)=> svg += node(c, R.team, yT[i], R_OUT));
   for(let i=0;i<8;i++){ const a=yT[2*i], b=yT[2*i+1], m=yO[i];
-    svg += line(R.team-TEAM_W/2, a, R.o+IW/2, m);
-    svg += line(R.team-TEAM_W/2, b, R.o+IW/2, m);
-    svg += box(TR.oct[i], R.o, m, IW, IN_H); }
+    svg += line(R.team-R_OUT, a, R.o+R_IN, m);
+    svg += line(R.team-R_OUT, b, R.o+R_IN, m);
+    svg += node(TR.oct[i], R.o, m, R_IN); }
   for(let i=0;i<4;i++){ const a=yO[2*i], b=yO[2*i+1], m=yC[i];
-    svg += line(R.o-IW/2, a, R.c+IW/2, m);
-    svg += line(R.o-IW/2, b, R.c+IW/2, m);
-    svg += box(TR.cua[i], R.c, m, IW, IN_H); }
+    svg += line(R.o-R_IN, a, R.c+R_IN, m);
+    svg += line(R.o-R_IN, b, R.c+R_IN, m);
+    svg += node(TR.cua[i], R.c, m, R_IN); }
   for(let i=0;i<2;i++){ const a=yC[2*i], b=yC[2*i+1], m=yS[i];
-    svg += line(R.c-IW/2, a, R.s+IW/2, m);
-    svg += line(R.c-IW/2, b, R.s+IW/2, m);
-    svg += box(TR.sem[i], R.s, m, IW, IN_H); }
+    svg += line(R.c-R_IN, a, R.s+R_IN, m);
+    svg += line(R.c-R_IN, b, R.s+R_IN, m);
+    svg += node(TR.sem[i], R.s, m, R_IN); }
   const fxR = CX+150;
-  svg += line(R.s-IW/2, yS[0], fxR+IW/2, yFinal);
-  svg += line(R.s-IW/2, yS[1], fxR+IW/2, yFinal);
-  svg += box(TR.fin, fxR, yFinal, IW, IN_H);
-  svg += line(fxR-IW/2, yFinal, CX+56, yFinal);
+  svg += line(R.s-R_IN, yS[0], fxR+R_IN, yFinal);
+  svg += line(R.s-R_IN, yS[1], fxR+R_IN, yFinal);
+  svg += node(TR.fin, fxR, yFinal, R_IN);
+  svg += line(fxR-R_IN, yFinal, CX+56, yFinal);
 
   // FINAL — trofeo
   const trophyR = 50;
@@ -766,8 +774,8 @@ function renderBracket(){
   svg += `<text x="${CX}" y="${yFinal+trophyR+38}" text-anchor="middle" class="round-label" style="fill:var(--ink);font-size:15px;letter-spacing:2px">19 jul · MetLife Stadium</text>`;
   svg += `<text x="${CX}" y="${yFinal+trophyR+58}" text-anchor="middle" class="round-label" style="fill:var(--muted);font-size:11px;letter-spacing:2px">East Rutherford · NJ</text>`;
   if(champion && TEAMS[champion]){
-    svg += `<text x="${CX}" y="${yFinal-trophyR-66}" text-anchor="middle" class="round-label" style="fill:var(--gold);font-size:13px;letter-spacing:2px">CAMPEÓN</text>`;
-    svg += box(champion, CX, yFinal-trophyR-44, 124, 38);
+    svg += `<text x="${CX}" y="${yFinal-trophyR-86}" text-anchor="middle" class="round-label" style="fill:var(--gold);font-size:13px;letter-spacing:2px">CAMPEÓN</text>`;
+    svg += node(champion, CX, yFinal-trophyR-58, 24);
   }
 
   svg += `</svg>`;
