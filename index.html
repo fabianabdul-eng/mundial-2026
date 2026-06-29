@@ -681,7 +681,7 @@ function renderBracket(){
   const line = (x1,y1,x2,y2) =>
     `<path class="bracket-line" d="M${x1} ${y1} H${(x1+x2)/2} V${y2} H${x2}"/>`;
 
-  const R_OUT = 30, R_IN = 24;   // radios de los círculos (16avos / rondas internas)
+  const R_OUT = 30, R_IN = 30;   // radios de los círculos (mismo tamaño en todas las rondas)
   // Nodo circular: bandera dentro, nombre del país debajo
   const node = (code, cx, cy, r) => {
     if(code && TEAMS[code]){
